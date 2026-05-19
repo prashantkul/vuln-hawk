@@ -15,6 +15,7 @@ eval/results/*
 !eval/results/.gitkeep
 !eval/results/pygoat-report-*.json
 !eval/results/pygoat-methodology-*.md
+!eval/results/gemini-methodology-*.md
 
 # Local test DBs the demo app creates.
 *.db
