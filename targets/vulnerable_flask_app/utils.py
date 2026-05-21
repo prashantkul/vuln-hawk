@@ -50,7 +50,21 @@ def preview_url():
     url = request.args.get("url", "")
     if not url:
         abort(400)
-    resp = requests.get(url, timeout=5)
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        abort(400, "Only http and https schemes are allowed")
+    hostname = parsed.hostname
+    if not hostname:
+        abort(400, "Invalid URL")
+    try:
+        resolved_ips = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        abort(400, "Cannot resolve hostname")
+    for entry in resolved_ips:
+        ip = ipaddress.ip_address(entry[4][0])
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            abort(403, "Requests to internal/private addresses are not allowed")
+    resp = requests.get(url, timeout=5, allow_redirects=False)
     return jsonify({"status": resp.status_code, "body": resp.text[:500]})
 
 
