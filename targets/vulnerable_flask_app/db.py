@@ -47,7 +47,7 @@ def search_users():
     q = request.args.get("q", "")
     with _conn() as c:
         cur = c.cursor()
-        cur.execute(f"SELECT id, name, email FROM users WHERE name = '{q}'")
+        cur.execute("SELECT id, name, email FROM users WHERE name = ?", (q,))
         rows = cur.fetchall()
     return jsonify(rows)
 
