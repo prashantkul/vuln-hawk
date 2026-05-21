@@ -12,11 +12,18 @@ dependencies = [
     "requests>=2.31.0",
     "werkzeug>=3.0.0",
     "docker>=7.1.0",
+    "a2a-sdk>=0.2.0",
 ]
 
 [project.optional-dependencies]
 vertex = ["anthropic[vertex]>=0.96.0", "google-cloud-aiplatform>=1.127.0"]
 docker = ["docker>=7.0.0"]
+a2a = ["a2a-sdk>=0.2.0", "uvicorn>=0.30.0"]
 
 [project.scripts]
 vuln-eval = "eval.run_eval:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]

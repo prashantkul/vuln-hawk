@@ -56,6 +56,8 @@ def get_profile(user_id):
     # VULN-005 (IDOR): login_required only ensures a session exists.
     # There is NO check that session["user_id"] == user_id. Any logged-in
     # user can read /api/users/3/profile and obtain the admin's SSN.
+    if session["user_id"] != user_id:
+        abort(403)
     user = _USERS.get(user_id)
     if user is None:
         return jsonify({"error": "not found"}), 404

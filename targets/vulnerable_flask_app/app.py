@@ -6,6 +6,8 @@ vulnerability but whose data flow makes them safe. The agent under test
 is expected to distinguish between them.
 """
 
+import os
+
 from flask import Flask, request, render_template_string, redirect, abort
 
 from auth import auth_bp, login_required
@@ -18,10 +20,10 @@ app = Flask(__name__)
 
 # VULN-006 (Hardcoded Secret): the secret key is embedded in source.
 # Anyone with read access to the repo can forge session cookies.
-app.secret_key = "super-secret-key-12345"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me-in-production")
 
 CONFIG = {
-    "api_key": "sk-live-AB12CD34EF56GH78IJ90KL",
+    "api_key": os.environ.get("APP_API_KEY", ""),
     "debug_mode": False,
     "max_upload_mb": 16,
 }
@@ -45,8 +47,7 @@ def error_page():
     # {{ config.items() }} or {{ ''.__class__.__mro__[1].__subclasses__() }}
     # achieve arbitrary attribute access and RCE.
     user_message = request.args.get("msg", "Unknown error")
-    template = f"<h1>Error</h1><p>Error: {user_message}</p>"
-    return render_template_string(template)
+    return render_template_string("<h1>Error</h1><p>Error: {{ msg }}</p>", msg=user_message)
 
 
 @app.route("/safe-error")

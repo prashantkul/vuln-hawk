@@ -32,6 +32,7 @@ from vuln_agent.tools import (
     run_python_snippet,
     search_code,
 )
+from fixer_agent.tools import save_report
 
 if LIVE_POC_ENABLED:
     from vuln_agent.tools import send_poc_request, start_target_app, stop_target_app
@@ -600,6 +601,23 @@ object:
     "proof_of_concept": object with "request", "expected_behavior", "validation_steps"
     "suggested_fix": short remediation
 
+## PHASE 6: SAVE REPORT & OFFER AUTO-FIX
+
+Step 6.1: Call `save_report(report_json)` with the JSON report you just
+produced (the entire fenced JSON block content). This persists it to
+`.vuln-hawk/report-{timestamp}.json` in the target codebase.
+
+Step 6.2: If findings were found, ask the user:
+"Would you like me to hand off these findings to the fixer agent for
+auto-remediation? The fixer will generate code patches, verify them,
+and create a pull request."
+
+If the user says yes and the fixer agent is available via A2A, transfer
+to `fixer_agent` with the report. If the fixer is not running, tell the
+user to launch it with:
+  `adk web fixer_agent` (standalone) or
+  `uvicorn fixer_agent.a2a_server:app --port 8001` (A2A mode)
+
 ## CRITICAL RULES
 - Follow the phases IN ORDER. Do not skip phases.
 - Announce each phase transition clearly.
@@ -655,6 +673,7 @@ _root_tools = [
     create_scan_team,
     create_analysis_team,
     create_verification_team,
+    save_report,
 ]
 if LIVE_POC_ENABLED:
     _root_tools.extend([start_target_app, stop_target_app])
