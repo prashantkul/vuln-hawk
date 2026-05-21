@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any
 
 
@@ -129,3 +130,24 @@ def parse_report(text: str) -> Report:
         )
 
     return Report(parse_error=last_err or "no JSON block found", raw=text)
+
+
+def from_json_file(path: Path | str) -> Report:
+    """Load a Report from a JSON file.
+
+    Accepts either extracted JSON (with a top-level ``findings`` key) or
+    raw agent output text containing a fenced ``json`` block.
+    """
+    text = Path(path).read_text(encoding="utf-8")
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict) and "findings" in data:
+            findings = [
+                _coerce_finding(f, i)
+                for i, f in enumerate(data.get("findings", []))
+                if isinstance(f, dict)
+            ]
+            return Report(summary=str(data.get("summary", "")), findings=findings, raw=text)
+    except json.JSONDecodeError:
+        pass
+    return parse_report(text)
