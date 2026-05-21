@@ -40,5 +40,7 @@ def download_file():
     name = request.args.get("filename", "")
     if not name:
         abort(400)
-    path = os.path.join(UPLOAD_DIR, name)
+    path = os.path.realpath(os.path.join(UPLOAD_DIR, name))
+    if not path.startswith(os.path.realpath(UPLOAD_DIR) + os.sep):
+        abort(403)
     return send_file(path)
