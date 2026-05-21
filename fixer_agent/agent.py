@@ -36,6 +36,7 @@ from fixer_agent.tools import (
     create_pull_request,
     git_commit,
     git_diff,
+    load_report,
     run_target_tests,
     save_report,
     write_file,
@@ -336,6 +337,7 @@ confirmed vulnerabilities. You MUST follow the phases below IN ORDER.
 ## Available tools
 
 **Read tools** (use in all phases):
+- `load_report(report_path)` — load a vulnerability report from a file path
 - `read_file(filepath)` — read source code
 - `search_code(pattern)` — grep for patterns
 - `analyze_python_ast(filepath, analysis_type)` — extract structure
@@ -360,7 +362,13 @@ confirmed vulnerabilities. You MUST follow the phases below IN ORDER.
 
 Print: "=== PHASE 1: REPORT INGESTION ==="
 
-1. If the user provides a report file path, use `read_file` to load it.
+IMPORTANT: Do NOT ask users to upload files. The Anthropic backend does
+not support file attachments. Instead, ask for the FILE PATH and use
+`load_report(report_path)` to read it from disk.
+
+1. If the user provides a report file path, call `load_report(report_path)`.
+   Paths can be relative to the vuln-hawk repo root (e.g.,
+   "eval/results/claude-pygoat-report-20260516.json") or absolute.
    If the user pastes findings directly, parse them from the message.
    If findings arrive via A2A, they will be in the message payload.
 
@@ -465,6 +473,7 @@ Print: "=== PHASE 5: APPLYING FIXES ==="
 
 
 _root_tools = [
+    load_report,
     read_file,
     search_code,
     list_directory,

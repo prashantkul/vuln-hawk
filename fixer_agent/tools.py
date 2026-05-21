@@ -21,6 +21,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from vuln_agent.config import REPO_ROOT
 from vuln_agent.tools import (
     _safe_resolve,
     _target_root,
@@ -29,6 +30,64 @@ from vuln_agent.tools import (
     read_file,
     search_code,
 )
+
+
+def load_report(report_path: str = "") -> dict:
+    """Load a vulnerability report from a file path. Accepts absolute paths
+    or paths relative to the vuln-hawk repo root. Use this to ingest a
+    report for fix generation — do NOT upload files as attachments.
+
+    Args:
+        report_path: REQUIRED. Path to the report JSON file.
+            Examples:
+              "eval/results/claude-pygoat-report-20260516.json"
+              "/absolute/path/to/report.json"
+
+    Returns:
+        dict with 'status', 'summary', 'findings' (list), and 'total_findings'.
+    """
+    if not report_path:
+        return {"status": "error", "error": "report_path is required. Provide the path to a report JSON file."}
+
+    path = Path(report_path)
+    if not path.is_absolute():
+        path = REPO_ROOT / report_path
+    path = path.resolve()
+
+    if not path.exists():
+        return {"status": "error", "error": f"Report file not found: {report_path}"}
+
+    try:
+        from vuln_agent.report import from_json_file
+        report = from_json_file(path)
+    except Exception as exc:
+        return {"status": "error", "error": f"Failed to parse report: {exc}"}
+
+    if report.parse_error:
+        return {"status": "error", "error": f"Report parse error: {report.parse_error}"}
+
+    findings_dicts = []
+    for f in report.findings:
+        findings_dicts.append({
+            "id": f.id,
+            "vuln_class": f.vuln_class,
+            "file": f.file,
+            "function": f.function,
+            "line_range": f.line_range,
+            "severity": f.severity,
+            "confidence": f.confidence,
+            "data_flow": f.data_flow,
+            "suggested_fix": f.suggested_fix,
+            "poc_request": f.proof_of_concept.request,
+            "poc_validated": f.proof_of_concept.live_validated,
+        })
+
+    return {
+        "status": "ok",
+        "summary": report.summary,
+        "findings": findings_dicts,
+        "total_findings": len(findings_dicts),
+    }
 
 
 def write_file(
