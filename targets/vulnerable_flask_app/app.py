@@ -45,8 +45,7 @@ def error_page():
     # {{ config.items() }} or {{ ''.__class__.__mro__[1].__subclasses__() }}
     # achieve arbitrary attribute access and RCE.
     user_message = request.args.get("msg", "Unknown error")
-    template = f"<h1>Error</h1><p>Error: {user_message}</p>"
-    return render_template_string(template)
+    return render_template_string("<h1>Error</h1><p>Error: {{ msg }}</p>", msg=user_message)
 
 
 @app.route("/safe-error")
