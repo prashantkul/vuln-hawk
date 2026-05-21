@@ -251,6 +251,40 @@ def check_syntax(filepath: str = "") -> dict:
         }
 
 
+def _verify_git_root() -> dict | None:
+    """Verify TARGET_CODEBASE_ROOT is the root of its own git repo, not a
+    subdirectory of a parent repo (like vuln-hawk itself).  Returns an
+    error dict if the check fails, or None if OK."""
+    root = _target_root()
+
+    check = subprocess.run(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        capture_output=True, text=True, cwd=str(root),
+    )
+    if check.returncode != 0:
+        return {"status": "error", "error": f"Target directory is not inside a git repository: {root}"}
+
+    toplevel = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        capture_output=True, text=True, cwd=str(root),
+    )
+    git_root = Path(toplevel.stdout.strip()).resolve()
+
+    if git_root != root:
+        return {
+            "status": "error",
+            "error": (
+                f"TARGET_CODEBASE_ROOT ({root}) is a subdirectory of "
+                f"another git repo ({git_root}). The fixer agent would "
+                f"create branches/commits in that parent repo instead of "
+                f"the target. Set TARGET_CODEBASE_ROOT to an independent "
+                f"git repository (clone the target repo to a separate "
+                f"directory first)."
+            ),
+        }
+    return None
+
+
 def create_fix_branch(branch_name: str = "", base_ref: str = "HEAD") -> dict:
     """Create a new git branch for the fixes in the target repository.
 
@@ -272,12 +306,9 @@ def create_fix_branch(branch_name: str = "", base_ref: str = "HEAD") -> dict:
 
     root = _target_root()
 
-    check = subprocess.run(
-        ["git", "rev-parse", "--is-inside-work-tree"],
-        capture_output=True, text=True, cwd=str(root),
-    )
-    if check.returncode != 0:
-        return {"status": "error", "error": "Target directory is not a git repository"}
+    err = _verify_git_root()
+    if err:
+        return err
 
     status = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -316,6 +347,10 @@ def git_commit(files: str = "", message: str = "") -> dict:
         return {"status": "error", "error": "message is required"}
 
     root = _target_root()
+    err = _verify_git_root()
+    if err:
+        return err
+
     file_list = [f.strip() for f in files.split(",") if f.strip()]
 
     for f in file_list:
@@ -467,6 +502,9 @@ def create_pull_request(
         return {"status": "error", "error": "body is required"}
 
     root = _target_root()
+    err = _verify_git_root()
+    if err:
+        return err
 
     gh_check = subprocess.run(
         ["gh", "auth", "status"],

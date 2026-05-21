@@ -141,6 +141,34 @@ class TestCheckSyntax:
         assert result["status"] == "error"
 
 
+class TestGitRootGuard:
+    def test_rejects_subdirectory_of_parent_repo(self, tmp_path, monkeypatch):
+        """If TARGET_CODEBASE_ROOT is a subdir of another git repo,
+        git operations should be rejected."""
+        parent = tmp_path / "parent_repo"
+        parent.mkdir()
+        subprocess.run(["git", "init"], cwd=str(parent), capture_output=True)
+        subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=str(parent), capture_output=True)
+        subprocess.run(["git", "config", "user.name", "T"], cwd=str(parent), capture_output=True)
+        (parent / "README.md").write_text("parent")
+        subprocess.run(["git", "add", "."], cwd=str(parent), capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=str(parent), capture_output=True)
+
+        target_sub = parent / "targets" / "myapp"
+        target_sub.mkdir(parents=True)
+        (target_sub / "app.py").write_text("x = 1\n")
+
+        monkeypatch.setenv("TARGET_CODEBASE_ROOT", str(target_sub))
+        result = create_fix_branch("test-branch")
+        assert result["status"] == "error"
+        assert "subdirectory" in result["error"]
+
+    def test_accepts_standalone_repo(self, target_repo):
+        """A proper standalone git repo should pass the guard."""
+        result = create_fix_branch("test-ok")
+        assert result["status"] == "ok"
+
+
 class TestCreateFixBranch:
     def test_creates_branch(self, target_repo):
         result = create_fix_branch("vuln-hawk/test-fix")
