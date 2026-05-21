@@ -5,8 +5,13 @@ traps that exercise the agent's data flow tracing.
 import os
 import subprocess
 
+import ipaddress
+import socket
+import urllib.parse
+
 import requests
 from flask import Blueprint, request, jsonify, abort
+from werkzeug.utils import secure_filename
 
 
 utils_bp = Blueprint("utils", __name__)
@@ -20,8 +25,10 @@ def convert_file():
     # commands as the web process.
     body = request.get_json(silent=True) or {}
     filename = body.get("filename", "")
-    cmd = f"convert {filename} output.pdf"
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    filename = secure_filename(filename)
+    if not filename:
+        return jsonify({"error": "invalid filename"}), 400
+    result = subprocess.run(["convert", filename, "output.pdf"], capture_output=True, text=True)
     return jsonify({"stdout": result.stdout, "stderr": result.stderr})
 
 
