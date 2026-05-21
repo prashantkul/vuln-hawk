@@ -23,7 +23,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "change-me-in-production")
 
 CONFIG = {
-    "api_key": "sk-live-AB12CD34EF56GH78IJ90KL",
+    "api_key": os.environ.get("APP_API_KEY", ""),
     "debug_mode": False,
     "max_upload_mb": 16,
 }
