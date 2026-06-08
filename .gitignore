@@ -17,6 +17,8 @@ eval/results/*
 !eval/results/claude-*.md
 !eval/results/gemini-*.json
 !eval/results/gemini-*.md
+!eval/results/nemotron-*.json
+!eval/results/self-audit-*.md
 
 # Local test DBs the demo app creates.
 *.db

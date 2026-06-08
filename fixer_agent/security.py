@@ -106,6 +106,16 @@ def before_tool_callback(tool, args, tool_context) -> Optional[dict]:
             _denied_count += 1
             return {"status": "error", "error": f"Invalid branch name: {branch_name}"}
 
+    if tool_name == "run_target_tests":
+        command = args.get("command", "")
+        if command:
+            first_word = command.split()[0] if command.split() else ""
+            basename = os.path.basename(first_word)
+            for blocked in FIXER_COMMAND_DENYLIST:
+                if blocked in command.lower():
+                    _denied_count += 1
+                    return {"status": "error", "error": f"Blocked command in test runner: {blocked}"}
+
     for key, val in args.items():
         if not isinstance(val, str):
             continue

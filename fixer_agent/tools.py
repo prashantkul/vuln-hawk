@@ -403,12 +403,53 @@ def git_diff(filepath: str = "") -> dict:
     return {"status": "ok", "diff": result.stdout or "(no changes)"}
 
 
+_SAFE_TEST_MODULES = frozenset(["pytest", "unittest", "nose2", "tox", "trial"])
+
+_STANDALONE_RUNNERS = frozenset(["pytest", "tox", "nose2", "trial"])
+
+
+def _validate_test_command(command: str) -> str | None:
+    """Validate that a command matches a known test runner pattern.
+    Returns an error message if invalid, None if OK."""
+    import shlex
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return f"Unparseable command: {command}"
+    if not parts:
+        return "Empty command"
+    executable = os.path.basename(parts[0])
+
+    if executable in _STANDALONE_RUNNERS:
+        return None
+
+    is_python = executable in ("python", "python3") or executable == os.path.basename(sys.executable)
+    if is_python and len(parts) >= 3:
+        if parts[1] == "-m" and parts[2] in _SAFE_TEST_MODULES:
+            return None
+        if os.path.basename(parts[1]) == "manage.py" and len(parts) >= 3 and parts[2] == "test":
+            return None
+    if is_python and len(parts) >= 2:
+        if parts[1] == "-c":
+            return "python -c is not allowed — use python -m <test_runner> instead"
+
+    if executable == "manage.py" and len(parts) >= 2 and parts[1] == "test":
+        return None
+
+    return (
+        f"Command must be a known test runner pattern: "
+        f"pytest, python -m pytest, tox, manage.py test, etc. Got: {command}"
+    )
+
+
 def run_target_tests(command: str = "", timeout: int = 120) -> dict:
     """Discover and run the test suite in the target repository.
 
     Args:
         command: Explicit test command to run. If empty, auto-discovers
             the test runner (pytest, django manage.py test, tox).
+            Must start with an allowed test runner (pytest, python -m pytest,
+            tox, manage.py test, etc.).
         timeout: Timeout in seconds. Defaults to 120.
 
     Returns:
@@ -430,10 +471,19 @@ def run_target_tests(command: str = "", timeout: int = 120) -> dict:
             "message": "No test runner found in target repository",
         }
 
+    validation_error = _validate_test_command(command)
+    if validation_error:
+        return {"status": "error", "error": validation_error}
+
+    import shlex
+    try:
+        cmd_parts = shlex.split(command)
+    except ValueError:
+        return {"status": "error", "error": f"Unparseable command: {command}"}
+
     try:
         result = subprocess.run(
-            command,
-            shell=True,
+            cmd_parts,
             capture_output=True,
             text=True,
             cwd=str(root),
