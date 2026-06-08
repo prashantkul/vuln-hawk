@@ -336,23 +336,37 @@ discovers vulns and we review manually.
 
 ## Results
 
-### Bundled Flask app — model comparison (8 vulns, 10 traps)
+### Bundled Flask app — model comparison
 
-| Metric | Claude Opus 4.6 | Gemini 3.1 Pro | Nemotron 3 Ultra 550B |
-|---|---|---|---|
-| True positives | 7 | 8 | 3 |
-| False positives | 0 | 0 | 0 |
-| False negatives | 1 | 0 | 5 |
-| Traps triggered | 0 | 0 | 0 |
-| Precision | 1.000 | 1.000 | 1.000 |
-| Recall | 0.875 | 1.000 | 0.375 |
-| F1 | 0.933 | 1.000 | 0.545 |
+**Claude and Gemini** were evaluated against the original vulnerable
+codebase (8 planted vulns, 10 FP traps):
 
-All three models avoided all 10 false-positive traps. Nemotron
-correctly identified the 3 highest-signal vulnerabilities (hardcoded
-secret, command injection, SSRF with DNS rebinding) and produced the
-most precise SSRF analysis — identifying the TOCTOU DNS rebinding
-bypass that other models flagged only as generic SSRF.
+| Metric | Claude Opus 4.6 | Gemini 3.1 Pro |
+|---|---|---|
+| True positives | 7 | 8 |
+| False positives | 0 | 0 |
+| False negatives | 1 | 0 |
+| Traps triggered | 0 | 0 |
+| Precision | 1.000 | 1.000 |
+| Recall | 0.875 | 1.000 |
+| F1 | 0.933 | 1.000 |
+
+**Nemotron 3 Ultra 550B** was evaluated against the *partially
+remediated* codebase (after the fixer agent patched 5 of 8 vulns).
+Three vulnerabilities remained — Nemotron found all 3:
+
+| Metric | Nemotron 3 Ultra 550B |
+|---|---|
+| True positives | 3 / 3 remaining |
+| False positives | 0 |
+| Traps triggered | 0 |
+| Precision | 1.000 |
+| Recall | 1.000 |
+
+Nemotron correctly dismissed 6 patched code patterns as safe and
+produced the most precise SSRF analysis of any model — identifying
+the TOCTOU DNS rebinding bypass in the IP validation logic, rather
+than flagging it as generic SSRF.
 
 ### Bundled Flask app — live PoC validation
 
