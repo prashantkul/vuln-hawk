@@ -34,6 +34,11 @@ GEMINI_FLASH_MODEL = os.environ.get("VULN_AGENT_GEMINI_FLASH_MODEL", "gemini-2.5
 #   Stable: gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-3.1-flash-lite
 #   Preview: gemini-3.1-pro-preview, gemini-3-flash-preview
 
+NEMOTRON_MODEL = os.environ.get(
+    "VULN_AGENT_NEMOTRON_MODEL",
+    "openrouter/nvidia/nemotron-3-ultra-550b-a55b",
+)
+
 BACKEND = os.environ.get("VULN_AGENT_BACKEND", "anthropic").lower()
 
 # ── Thinking config ─────────────────────────────────────────────────
@@ -49,6 +54,8 @@ def _detect_backend(model: str) -> str:
     """Infer the backend from the model string if not explicitly set."""
     if model.startswith("gemini"):
         return "gemini"
+    if model.startswith("openrouter/"):
+        return "openrouter"
     return BACKEND
 
 
@@ -98,8 +105,9 @@ def create_llm(model: str) -> BaseLlm:
     """Return an LLM instance for the given model string.
 
     Auto-detects the backend from the model name:
-      - gemini-*  → Gemini (Google AI / Vertex AI)
-      - claude-*  → AnthropicLlm or Claude (depending on VULN_AGENT_BACKEND)
+      - gemini-*       → Gemini (Google AI / Vertex AI)
+      - openrouter/*   → LiteLlm (OpenRouter)
+      - claude-*       → AnthropicLlm or Claude (depending on VULN_AGENT_BACKEND)
 
     This allows mixed configs like root=gemini-2.5-pro, scanner=claude-sonnet-4-6.
     """
@@ -108,6 +116,17 @@ def create_llm(model: str) -> BaseLlm:
     if backend == "gemini":
         from google.adk.models.google_llm import Gemini
         return Gemini(model=model)
+
+    if backend == "openrouter":
+        from google.adk.models.lite_llm import LiteLlm
+
+        class _SerializableLiteLlm(LiteLlm):
+            def model_dump(self, **kwargs):
+                d = super().model_dump(**kwargs)
+                d.pop("llm_client", None)
+                return d
+
+        return _SerializableLiteLlm(model=model, drop_params=True)
 
     from google.adk.models.anthropic_llm import AnthropicLlm, Claude
 
