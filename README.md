@@ -1,10 +1,12 @@
 # vuln-hawk
 
 An LLM-based vulnerability discovery agent built with [Google's Agent
-Development Kit (ADK)](https://google.github.io/adk-docs/) and
-[Gemini](https://ai.google.dev/gemini-api/docs/models) models.
-Also supports [Claude](https://docs.anthropic.com/en/docs/) as an
-alternative backend.
+Development Kit (ADK)](https://google.github.io/adk-docs/). Supports
+[Gemini](https://ai.google.dev/gemini-api/docs/models),
+[Claude](https://docs.anthropic.com/en/docs/), and
+[NVIDIA Nemotron](https://build.nvidia.com/nvidia/nemotron-3-ultra-550b-a55b)
+(via [OpenRouter](https://openrouter.ai/)) as backends — including
+mixed-provider configs (e.g., Nemotron root + Gemini scanners).
 
 ## Research goals
 
@@ -42,7 +44,7 @@ block-beta
     block:phase1:1
         columns 3
         space
-        ROOT["🔍 Root Strategist\n(Gemini Pro)\n\nlist_directory · read_file\nsearch_code · analyze_python_ast"]
+        ROOT["🔍 Root Strategist\n(configurable)\n\nlist_directory · read_file\nsearch_code · analyze_python_ast"]
         space
     end
 
@@ -50,32 +52,32 @@ block-beta
 
     block:phase2:1
         columns 6
-        S0["Scanner 0\n(Gemini Flash)"]
-        S1["Scanner 1\n(Gemini Flash)"]
-        S2["Scanner 2\n(Gemini Flash)"]
-        S3["Scanner 3\n(Gemini Flash)"]
-        S4["Scanner 4\n(Gemini Flash)"]
-        S5["Scanner N\n(Gemini Flash)"]
+        S0["Scanner 0\n(configurable)"]
+        S1["Scanner 1\n(configurable)"]
+        S2["Scanner 2\n(configurable)"]
+        S3["Scanner 3\n(configurable)"]
+        S4["Scanner 4\n(configurable)"]
+        S5["Scanner N\n(configurable)"]
     end
 
     space
 
     block:phase3:1
         columns 4
-        A0["Analyzer 0\n(Gemini Flash)\n+ send_poc_request"]
-        A1["Analyzer 1\n(Gemini Flash)\n+ send_poc_request"]
-        A2["Analyzer 2\n(Gemini Flash)\n+ send_poc_request"]
-        A3["Analyzer M\n(Gemini Flash)\n+ send_poc_request"]
+        A0["Analyzer 0\n(configurable)\n+ send_poc_request"]
+        A1["Analyzer 1\n(configurable)\n+ send_poc_request"]
+        A2["Analyzer 2\n(configurable)\n+ send_poc_request"]
+        A3["Analyzer M\n(configurable)\n+ send_poc_request"]
     end
 
     space
 
     block:phase4:1
         columns 4
-        V0["Verifier 0\n(Gemini Flash)\n+ send_poc_request"]
-        V1["Verifier 1\n(Gemini Flash)\n+ send_poc_request"]
-        V2["Verifier 2\n(Gemini Flash)\n+ send_poc_request"]
-        V3["Verifier K\n(Gemini Flash)\n+ send_poc_request"]
+        V0["Verifier 0\n(configurable)\n+ send_poc_request"]
+        V1["Verifier 1\n(configurable)\n+ send_poc_request"]
+        V2["Verifier 2\n(configurable)\n+ send_poc_request"]
+        V3["Verifier K\n(configurable)\n+ send_poc_request"]
     end
 
     space
@@ -83,7 +85,7 @@ block-beta
     block:phase5:1
         columns 3
         space
-        REPORT["📋 Root Strategist\n(Gemini Pro)\n\nReview PoCs → drop INVALID\n→ JSON Vulnerability Report"]
+        REPORT["📋 Root Strategist\n(configurable)\n\nReview PoCs → drop INVALID\n→ JSON Vulnerability Report"]
         space
     end
 
@@ -217,9 +219,9 @@ cp .env.example .env
 |---|---|---|
 | **Provider** | | |
 | `GOOGLE_API_KEY` | | Google AI API key (for Gemini) |
-| `GOOGLE_API_KEY` | | Google AI API key (for Gemini) |
 | `ANTHROPIC_API_KEY` | | Anthropic API key (for Claude) |
-| `VULN_AGENT_BACKEND` | `anthropic` | Backend for Claude models (`anthropic` or `vertex`). Gemini auto-detects — this setting is ignored for `gemini-*` models. |
+| `OPENROUTER_API_KEY` | | OpenRouter API key (for Nemotron and other OpenRouter models) |
+| `VULN_AGENT_BACKEND` | `anthropic` | Backend for Claude models (`anthropic` or `vertex`). Gemini and OpenRouter auto-detect from the model string. |
 | **Per-role models** | | |
 | `VULN_AGENT_ROOT_MODEL` | `gemini-2.5-pro` | Root strategist |
 | `VULN_AGENT_SCANNER_MODEL` | `gemini-2.5-flash` | Scanner sub-agents |
@@ -237,8 +239,9 @@ cp .env.example .env
 | `VULN_AGENT_SANDBOX` | `local` | `local` or `docker` for code execution |
 | `TARGET_CODEBASE_ROOT` | `targets/vulnerable_flask_app` | Target codebase path |
 
-Model strings starting with `gemini-` auto-route to Google AI.
-All others use the configured backend.
+Model strings are auto-routed by prefix: `gemini-*` to Google AI,
+`openrouter/*` to OpenRouter via LiteLlm, all others to the
+configured backend.
 
 **Gemini (default):**
 ```
@@ -250,13 +253,22 @@ VULN_AGENT_VERIFIER_MODEL=gemini-2.5-flash
 VULN_AGENT_THINKING_BUDGET=8192
 ```
 
-**Claude (alternative):**
+**Claude:**
 ```
 ANTHROPIC_API_KEY=your-key
 VULN_AGENT_ROOT_MODEL=claude-opus-4-6
 VULN_AGENT_SCANNER_MODEL=claude-sonnet-4-6
 VULN_AGENT_ANALYZER_MODEL=claude-sonnet-4-6
 VULN_AGENT_VERIFIER_MODEL=claude-sonnet-4-6
+```
+
+**NVIDIA Nemotron (via OpenRouter):**
+```
+OPENROUTER_API_KEY=your-key
+VULN_AGENT_ROOT_MODEL=openrouter/nvidia/nemotron-3-ultra-550b-a55b
+VULN_AGENT_SCANNER_MODEL=openrouter/nvidia/nemotron-3-ultra-550b-a55b
+VULN_AGENT_ANALYZER_MODEL=openrouter/nvidia/nemotron-3-ultra-550b-a55b
+VULN_AGENT_VERIFIER_MODEL=openrouter/nvidia/nemotron-3-ultra-550b-a55b
 ```
 
 ## Running the agent
@@ -326,17 +338,21 @@ discovers vulns and we review manually.
 
 ### Bundled Flask app — model comparison (8 vulns, 10 traps)
 
-| Metric | Claude Opus 4.6 | Gemini 3.1 Pro |
-|---|---|---|
-| True positives | 7 | 8 |
-| False positives | 0 | 0 |
-| False negatives | 1 | 0 |
-| Traps triggered | 0 | 0 |
-| Precision | 1.000 | 1.000 |
-| Recall | 0.875 | 1.000 |
-| F1 | 0.933 | 1.000 |
+| Metric | Claude Opus 4.6 | Gemini 3.1 Pro | Nemotron 3 Ultra 550B |
+|---|---|---|---|
+| True positives | 7 | 8 | 3 |
+| False positives | 0 | 0 | 0 |
+| False negatives | 1 | 0 | 5 |
+| Traps triggered | 0 | 0 | 0 |
+| Precision | 1.000 | 1.000 | 1.000 |
+| Recall | 0.875 | 1.000 | 0.375 |
+| F1 | 0.933 | 1.000 | 0.545 |
 
-Both models avoided all 10 false-positive traps.
+All three models avoided all 10 false-positive traps. Nemotron
+correctly identified the 3 highest-signal vulnerabilities (hardcoded
+secret, command injection, SSRF with DNS rebinding) and produced the
+most precise SSRF analysis — identifying the TOCTOU DNS rebinding
+bypass that other models flagged only as generic SSRF.
 
 ### Bundled Flask app — live PoC validation
 
